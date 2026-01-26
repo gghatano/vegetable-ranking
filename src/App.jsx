@@ -98,7 +98,7 @@ const getVegetableIcon = (veggie) => {
 const VegetableRankingApp = () => {
   const [screen, setScreen] = useState('ranking');
   const [vegetables, setVegetables] = useState([]);
-  const [ranking, setRanking] = useState([null, null, null, null, null]);
+  const [ranking, setRanking] = useState([null, null, null]);
   const [comments, setComments] = useState({});
   const [newVeggie, setNewVeggie] = useState('');
   const [draggedVeggie, setDraggedVeggie] = useState(null);
@@ -109,7 +109,7 @@ const VegetableRankingApp = () => {
     if (saved) {
       const data = JSON.parse(saved);
       setVegetables(data.vegetables?.length > 0 ? data.vegetables : DEFAULT_VEGETABLES);
-      setRanking(data.ranking || [null, null, null, null, null]);
+      setRanking(data.ranking?.length === 3 ? data.ranking : [null, null, null]);
       setComments(data.comments || {});
     } else {
       setVegetables(DEFAULT_VEGETABLES);
@@ -168,7 +168,7 @@ const VegetableRankingApp = () => {
       // 既に埋まっている位置なら、それ以降を下にずらす
       if (newRanking[rankIndex] !== null) {
         // rankIndexから下の要素をずらす
-        for (let i = 4; i > rankIndex; i--) {
+        for (let i = 2; i > rankIndex; i--) {
           newRanking[i] = newRanking[i - 1];
         }
       }
@@ -204,7 +204,7 @@ const VegetableRankingApp = () => {
 
   const resetRanking = () => {
     if (window.confirm('ランキングをリセットしますか?')) {
-      setRanking([null, null, null, null, null]);
+      setRanking([null, null, null]);
       setComments({});
     }
   };
@@ -305,7 +305,7 @@ const VegetableRankingApp = () => {
                 onClick={exportToPDF}
                 className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700"
               >
-                PDF出力
+                出力
               </button>
             </div>
           </div>
@@ -382,7 +382,7 @@ const VegetableRankingApp = () => {
             <div className="bg-white rounded-lg shadow-md p-6 sticky top-8">
               <h2 className="text-xl font-bold mb-4">ランキング</h2>
               <div className="space-y-3">
-                {[0, 1, 2, 3, 4].map((index) => (
+                {[0, 1, 2].map((index) => (
                   <div
                     key={index}
                     onDragOver={handleDragOver}
