@@ -21,6 +21,39 @@ const DEFAULT_VEGETABLES = [
   'じゃがいも', 'カリフラワー', '大根', 'エリンギ', 'れんこん'
 ];
 
+const VEGETABLE_ICONS = {
+  'トマト': '🍅',
+  'きゅうり': '🥒',
+  'なす': '🍆',
+  'ピーマン': '🫑',
+  'にんじん': '🥕',
+  'じゃがいも': '🥔',
+  'たまねぎ': '🧅',
+  'キャベツ': '🥬',
+  'レタス': '🥗',
+  'ほうれん草': '🥬',
+  'ブロッコリー': '🥦',
+  'カリフラワー': '🥦',
+  'アスパラガス': '🌿',
+  'かぼちゃ': '🎃',
+  'ズッキーニ': '🥒',
+  'とうもろこし': '🌽',
+  'さやえんどう': '🫛',
+  'いんげん': '🫛',
+  'オクラ': '🌿',
+  '大根': '🥬',
+  '白菜': '🥬',
+  'ネギ': '🧅',
+  'もやし': '🌱',
+  'しいたけ': '🍄',
+  'えのき': '🍄',
+  'しめじ': '🍄',
+  'まいたけ': '🍄',
+  'エリンギ': '🍄',
+  'ごぼう': '🥜',
+  'れんこん': '🪷'
+};
+
 const VEGETABLE_COLORS = {
   'トマト': 'bg-red-100 border-red-300',
   'きゅうり': 'bg-green-100 border-green-300',
@@ -56,6 +89,10 @@ const VEGETABLE_COLORS = {
 
 const getVegetableColor = (veggie) => {
   return VEGETABLE_COLORS[veggie] || 'bg-green-50 border-green-200';
+};
+
+const getVegetableIcon = (veggie) => {
+  return VEGETABLE_ICONS[veggie] || '🥬';
 };
 
 const VegetableRankingApp = () => {
@@ -204,7 +241,7 @@ const VegetableRankingApp = () => {
               return `
                 <tr>
                   <td class="rank">${index + 1}位</td>
-                  <td>${veggie}</td>
+                  <td>${VEGETABLE_ICONS[veggie] || '🥬'} ${veggie}</td>
                   <td>${comments[veggie] || ''}</td>
                 </tr>
               `;
@@ -243,7 +280,9 @@ const VegetableRankingApp = () => {
                       <span className="text-2xl font-bold text-green-600">{index + 1}位</span>
                     </div>
                     <div className="flex-grow ml-4">
-                      <div className="text-xl font-semibold mb-2">{veggie}</div>
+                      <div className="text-xl font-semibold mb-2">
+                          <span className="mr-2">{getVegetableIcon(veggie)}</span>{veggie}
+                        </div>
                       {comments[veggie] && (
                         <div className="text-gray-600 bg-gray-50 p-3 rounded">
                           {comments[veggie]}
@@ -321,7 +360,9 @@ const VegetableRankingApp = () => {
                           : getVegetableColor(veggie)
                       }`}
                     >
-                      <div className="font-medium text-center mb-2 text-sm md:text-base">{veggie}</div>
+                      <div className="font-medium text-center mb-2 text-sm md:text-base">
+                        <span className="mr-1">{getVegetableIcon(veggie)}</span>{veggie}
+                      </div>
                       <textarea
                         placeholder="コメント"
                         value={comments[veggie] || ''}
@@ -356,7 +397,7 @@ const VegetableRankingApp = () => {
                           onDragStart={(e) => handleDragStart(e, ranking[index], `rank-${index}`)}
                           className="font-medium text-center mb-2 cursor-move hover:text-green-700 flex justify-between items-center"
                         >
-                          <span className="flex-grow">{ranking[index]}</span>
+                          <span className="flex-grow"><span className="mr-1">{getVegetableIcon(ranking[index])}</span>{ranking[index]}</span>
                           <button
                             onClick={() => removeFromRanking(index)}
                             className="text-red-500 hover:text-red-700 ml-2"
