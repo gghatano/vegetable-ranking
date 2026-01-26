@@ -209,58 +209,27 @@ const VegetableRankingApp = () => {
     }
   };
 
-  const exportToPDF = () => {
-    // PDFエクスポート用のHTMLを生成
-    const pdfContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: sans-serif; padding: 20px; }
-          h1 { text-align: center; color: #2d5016; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { border: 1px solid #333; padding: 12px; text-align: left; }
-          th { background-color: #4CAF50; color: white; }
-          .rank { text-align: center; font-weight: bold; width: 80px; }
-        </style>
-      </head>
-      <body>
-        <h1>野菜ランキング</h1>
-        <table>
-          <thead>
-            <tr>
-              <th class="rank">順位</th>
-              <th>野菜名</th>
-              <th>コメント</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${ranking.map((veggie, index) => {
-              if (!veggie) return '';
-              return `
-                <tr>
-                  <td class="rank">${index + 1}位</td>
-                  <td>${VEGETABLE_ICONS[veggie] || '🥬'} ${veggie}</td>
-                  <td>${comments[veggie] || ''}</td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-      </body>
-      </html>
-    `;
+  const copyToClipboard = () => {
+    const medals = ['🥇', '🥈', '🥉'];
+    const rankingText = ranking
+      .map((veggie, index) => {
+        if (!veggie) return null;
+        const comment = comments[veggie] ? `\n  ${comments[veggie]}` : '';
+        return `${medals[index]} ${index + 1}位 ${veggie}${comment}`;
+      })
+      .filter(Boolean)
+      .join('\n\n');
 
-    const blob = new Blob([pdfContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'yasai-ranking.html';
-    a.click();
-    URL.revokeObjectURL(url);
-    
-    alert('HTML形式でダウンロードしました。ブラウザの印刷機能から「PDFに保存」を選択してください。');
+    const text = `🥬 私の野菜ランキング 🥬
+
+${rankingText}
+
+▶ あなたも作ってみよう！
+https://gghatano.github.io/vegetable-ranking/`;
+
+    navigator.clipboard.writeText(text).then(() => {
+      alert('クリップボードにコピーしました！');
+    });
   };
 
   const availableVeggies = vegetables.filter(v => !ranking.includes(v));
@@ -273,11 +242,13 @@ const VegetableRankingApp = () => {
             <h1 className="text-3xl font-bold text-center mb-8 text-green-700">野菜ランキング結果</h1>
             
             <div className="space-y-4 mb-8">
-              {ranking.map((veggie, index) => (
-                veggie && (
+              {ranking.map((veggie, index) => {
+                const medals = ['🥇', '🥈', '🥉'];
+                return veggie && (
                   <div key={index} className="flex items-start border-b pb-4">
-                    <div className="flex-shrink-0 w-16 text-center">
-                      <span className="text-2xl font-bold text-green-600">{index + 1}位</span>
+                    <div className="flex-shrink-0 w-20 text-center">
+                      <span className="text-2xl">{medals[index]}</span>
+                      <span className="text-lg font-bold text-green-600 ml-1">{index + 1}位</span>
                     </div>
                     <div className="flex-grow ml-4">
                       <div className="text-xl font-semibold mb-2">
@@ -290,8 +261,8 @@ const VegetableRankingApp = () => {
                       )}
                     </div>
                   </div>
-                )
-              ))}
+                );
+              })}
             </div>
 
             <div className="flex gap-4 justify-center">
@@ -302,7 +273,7 @@ const VegetableRankingApp = () => {
                 編集に戻る
               </button>
               <button
-                onClick={exportToPDF}
+                onClick={copyToClipboard}
                 className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700"
               >
                 出力
