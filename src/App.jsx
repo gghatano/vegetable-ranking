@@ -228,7 +228,7 @@ ${rankingText}
 https://gghatano.github.io/vegetable-ranking/`;
 
     navigator.clipboard.writeText(text).then(() => {
-      alert('クリップボードにコピーしました！');
+      alert(`クリップボードにコピーしました！\n\n--- コピーした内容 ---\n${text}`);
     });
   };
 
@@ -315,7 +315,7 @@ https://gghatano.github.io/vegetable-ranking/`;
               </div>
 
               <h2 className="text-xl font-bold mb-3">野菜リスト</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 max-h-[calc(100vh-280px)] overflow-y-auto pr-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 max-h-[calc(100vh-280px)] overflow-y-auto pr-2">
                 {availableVeggies.map((veggie, index) => {
                   const actualIndex = vegetables.indexOf(veggie);
                   return (
