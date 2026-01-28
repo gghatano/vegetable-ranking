@@ -124,7 +124,7 @@ const DragOverlayCard = ({ veggie }) => {
 };
 
 // 野菜リスト内のソート可能なカード
-const SortableVeggieCard = ({ veggie, comments, updateComment, isDragging }) => {
+const SortableVeggieCard = ({ veggie, comments, updateComment }) => {
   const {
     attributes,
     listeners,
@@ -143,24 +143,32 @@ const SortableVeggieCard = ({ veggie, comments, updateComment, isDragging }) => 
     <div
       ref={setNodeRef}
       style={style}
-      className={`border-2 rounded-lg p-2 md:p-3 transition-all ${
+      className={`border-2 rounded-lg transition-all flex ${
         isSortableDragging ? 'opacity-40 scale-95' : ''
       } ${getVegetableColor(veggie)}`}
     >
+      {/* ドラッグハンドル - タッチターゲットを広く取る */}
       <div
         {...attributes}
         {...listeners}
-        className="font-medium text-center mb-2 text-sm md:text-base cursor-grab active:cursor-grabbing touch-none"
+        className="flex-shrink-0 w-10 md:w-12 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none bg-black/5 rounded-l-md hover:bg-black/10 transition-colors"
       >
-        <span className="mr-1">{getVegetableIcon(veggie)}</span>{veggie}
+        <span className="text-gray-400 text-lg select-none">⋮⋮</span>
       </div>
-      <textarea
-        placeholder="コメント"
-        value={comments[veggie] || ''}
-        onChange={(e) => updateComment(veggie, e.target.value)}
-        className="w-full text-sm px-2 py-1 border border-gray-200 rounded resize-none focus:outline-none focus:border-green-400"
-        rows="2"
-      />
+
+      {/* カード内容 */}
+      <div className="flex-grow p-2 min-w-0">
+        <div className="font-medium text-sm md:text-base truncate">
+          <span className="mr-1">{getVegetableIcon(veggie)}</span>{veggie}
+        </div>
+        <input
+          type="text"
+          placeholder="コメント"
+          value={comments[veggie] || ''}
+          onChange={(e) => updateComment(veggie, e.target.value)}
+          className="w-full text-xs md:text-sm px-2 py-1 mt-1 border border-gray-200 rounded focus:outline-none focus:border-green-400"
+        />
+      </div>
     </div>
   );
 };
@@ -191,30 +199,40 @@ const RankingSlot = ({ index, veggie, comments, updateComment, removeFromRanking
     >
       <div className="text-xs lg:text-sm font-semibold text-gray-600 mb-1 lg:mb-2">{index + 1}位</div>
       {veggie ? (
-        <div className="bg-green-100 p-2 lg:p-3 rounded">
+        <div className="bg-green-100 rounded flex">
+          {/* ドラッグハンドル */}
           <div
             {...attributes}
             {...listeners}
-            className="font-medium text-center mb-1 lg:mb-2 cursor-grab active:cursor-grabbing flex justify-between items-center text-xs lg:text-base touch-none"
+            className="flex-shrink-0 w-8 lg:w-10 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none bg-green-200/50 rounded-l hover:bg-green-200 transition-colors"
           >
-            <span className="flex-grow truncate"><span className="mr-1">{getVegetableIcon(veggie)}</span>{veggie}</span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                removeFromRanking(index);
-              }}
-              className="text-red-500 hover:text-red-700 ml-1 lg:ml-2 flex-shrink-0"
-            >
-              ✕
-            </button>
+            <span className="text-green-600 text-sm lg:text-lg select-none">⋮⋮</span>
           </div>
-          <textarea
-            placeholder="コメント"
-            value={comments[veggie] || ''}
-            onChange={(e) => updateComment(veggie, e.target.value)}
-            className="w-full text-xs lg:text-sm px-1 lg:px-2 py-1 border border-gray-200 rounded resize-none focus:outline-none focus:border-green-500 bg-white hidden lg:block"
-            rows="2"
-          />
+
+          {/* カード内容 */}
+          <div className="flex-grow p-1.5 lg:p-2 min-w-0">
+            <div className="flex justify-between items-center">
+              <span className="font-medium truncate text-xs lg:text-base">
+                <span className="mr-1">{getVegetableIcon(veggie)}</span>{veggie}
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeFromRanking(index);
+                }}
+                className="text-red-500 hover:text-red-700 ml-1 flex-shrink-0 text-xs lg:text-base"
+              >
+                ✕
+              </button>
+            </div>
+            <textarea
+              placeholder="コメント"
+              value={comments[veggie] || ''}
+              onChange={(e) => updateComment(veggie, e.target.value)}
+              className="w-full text-xs lg:text-sm px-1 lg:px-2 py-1 mt-1 border border-gray-200 rounded resize-none focus:outline-none focus:border-green-500 bg-white hidden lg:block"
+              rows="2"
+            />
+          </div>
         </div>
       ) : (
         <div className="text-gray-400 text-center text-xs lg:text-sm py-4">ここにドラッグ</div>
