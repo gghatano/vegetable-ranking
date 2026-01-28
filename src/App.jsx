@@ -1,4 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  rectSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const DEFAULT_VEGETABLES = [
   // 赤系
@@ -95,14 +112,140 @@ const getVegetableIcon = (veggie) => {
   return VEGETABLE_ICONS[veggie] || '🥬';
 };
 
+// ドラッグ中のオーバーレイカード
+const DragOverlayCard = ({ veggie }) => {
+  return (
+    <div className={`border-2 rounded-lg p-3 shadow-xl ${getVegetableColor(veggie)} opacity-95 cursor-grabbing`}>
+      <div className="font-medium text-center text-sm md:text-base">
+        <span className="mr-1">{getVegetableIcon(veggie)}</span>{veggie}
+      </div>
+    </div>
+  );
+};
+
+// 野菜リスト内のソート可能なカード
+const SortableVeggieCard = ({ veggie, comments, updateComment, isDragging }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging: isSortableDragging,
+  } = useSortable({ id: `list-${veggie}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`border-2 rounded-lg p-2 md:p-3 transition-all ${
+        isSortableDragging ? 'opacity-40 scale-95' : ''
+      } ${getVegetableColor(veggie)}`}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="font-medium text-center mb-2 text-sm md:text-base cursor-grab active:cursor-grabbing touch-none"
+      >
+        <span className="mr-1">{getVegetableIcon(veggie)}</span>{veggie}
+      </div>
+      <textarea
+        placeholder="コメント"
+        value={comments[veggie] || ''}
+        onChange={(e) => updateComment(veggie, e.target.value)}
+        className="w-full text-sm px-2 py-1 border border-gray-200 rounded resize-none focus:outline-none focus:border-green-400"
+        rows="2"
+      />
+    </div>
+  );
+};
+
+// ランキングスロット（ドロップ可能）
+const RankingSlot = ({ index, veggie, comments, updateComment, removeFromRanking, isOver }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `rank-${index}`, disabled: !veggie });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`border-2 border-dashed rounded-lg p-2 lg:p-3 min-h-[100px] lg:min-h-[120px] transition-all ${
+        isOver ? 'border-green-500 bg-green-100 scale-[1.02]' : 'border-gray-300'
+      } ${isDragging ? 'opacity-40' : ''}`}
+    >
+      <div className="text-xs lg:text-sm font-semibold text-gray-600 mb-1 lg:mb-2">{index + 1}位</div>
+      {veggie ? (
+        <div className="bg-green-100 p-2 lg:p-3 rounded">
+          <div
+            {...attributes}
+            {...listeners}
+            className="font-medium text-center mb-1 lg:mb-2 cursor-grab active:cursor-grabbing flex justify-between items-center text-xs lg:text-base touch-none"
+          >
+            <span className="flex-grow truncate"><span className="mr-1">{getVegetableIcon(veggie)}</span>{veggie}</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                removeFromRanking(index);
+              }}
+              className="text-red-500 hover:text-red-700 ml-1 lg:ml-2 flex-shrink-0"
+            >
+              ✕
+            </button>
+          </div>
+          <textarea
+            placeholder="コメント"
+            value={comments[veggie] || ''}
+            onChange={(e) => updateComment(veggie, e.target.value)}
+            className="w-full text-xs lg:text-sm px-1 lg:px-2 py-1 border border-gray-200 rounded resize-none focus:outline-none focus:border-green-500 bg-white hidden lg:block"
+            rows="2"
+          />
+        </div>
+      ) : (
+        <div className="text-gray-400 text-center text-xs lg:text-sm py-4">ここにドラッグ</div>
+      )}
+    </div>
+  );
+};
+
 const VegetableRankingApp = () => {
   const [screen, setScreen] = useState('ranking');
   const [vegetables, setVegetables] = useState([]);
   const [ranking, setRanking] = useState([null, null, null]);
   const [comments, setComments] = useState({});
   const [newVeggie, setNewVeggie] = useState('');
-  const [draggedVeggie, setDraggedVeggie] = useState(null);
-  const [dragOverIndex, setDragOverIndex] = useState(null);
+  const [activeId, setActiveId] = useState(null);
+  const [overRankIndex, setOverRankIndex] = useState(null);
+
+  // タッチとマウス両対応のセンサー設定
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 5,
+      },
+    })
+  );
 
   useEffect(() => {
     const saved = localStorage.getItem('vegetableRanking');
@@ -124,65 +267,75 @@ const VegetableRankingApp = () => {
     }));
   }, [vegetables, ranking, comments]);
 
-  const handleDragStart = (e, veggie, source, listIndex = null) => {
-    setDraggedVeggie({ veggie, source, listIndex });
-    e.dataTransfer.effectAllowed = 'move';
+  const availableVeggies = vegetables.filter(v => !ranking.includes(v));
+
+  // ドラッグ開始
+  const handleDragStart = (event) => {
+    setActiveId(event.active.id);
   };
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+  // ドラッグ中（オーバー時）
+  const handleDragOver = (event) => {
+    const { over } = event;
+    if (over && over.id.toString().startsWith('rank-')) {
+      const index = parseInt(over.id.toString().split('-')[1]);
+      setOverRankIndex(index);
+    } else {
+      setOverRankIndex(null);
+    }
   };
 
-  const handleListDragOver = (e, index) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverIndex(index);
-  };
+  // ドラッグ終了
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    setActiveId(null);
+    setOverRankIndex(null);
 
-  const handleListDrop = (e, dropIndex) => {
-    e.preventDefault();
-    setDragOverIndex(null);
-    
-    if (!draggedVeggie || draggedVeggie.source !== 'list') return;
-    
-    const dragIndex = draggedVeggie.listIndex;
-    if (dragIndex === dropIndex) return;
-    
-    const newVegetables = [...vegetables];
-    const [removed] = newVegetables.splice(dragIndex, 1);
-    newVegetables.splice(dropIndex, 0, removed);
-    
-    setVegetables(newVegetables);
-    setDraggedVeggie(null);
-  };
+    if (!over) return;
 
-  const handleDrop = (e, rankIndex) => {
-    e.preventDefault();
-    if (!draggedVeggie) return;
+    const activeIdStr = active.id.toString();
+    const overIdStr = over.id.toString();
 
-    const newRanking = [...ranking];
-    
-    if (draggedVeggie.source === 'list') {
-      // リストからランキングへドロップする場合
+    // リスト内での並び替え
+    if (activeIdStr.startsWith('list-') && overIdStr.startsWith('list-')) {
+      const activeVeggie = activeIdStr.replace('list-', '');
+      const overVeggie = overIdStr.replace('list-', '');
+
+      const oldIndex = vegetables.indexOf(activeVeggie);
+      const overIndex = vegetables.indexOf(overVeggie);
+
+      if (oldIndex !== overIndex) {
+        setVegetables(arrayMove(vegetables, oldIndex, overIndex));
+      }
+    }
+    // リストからランキングへ
+    else if (activeIdStr.startsWith('list-') && overIdStr.startsWith('rank-')) {
+      const veggie = activeIdStr.replace('list-', '');
+      const rankIndex = parseInt(overIdStr.split('-')[1]);
+
+      const newRanking = [...ranking];
       // 既に埋まっている位置なら、それ以降を下にずらす
       if (newRanking[rankIndex] !== null) {
-        // rankIndexから下の要素をずらす
         for (let i = 2; i > rankIndex; i--) {
           newRanking[i] = newRanking[i - 1];
         }
       }
-      newRanking[rankIndex] = draggedVeggie.veggie;
-    } else if (draggedVeggie.source.startsWith('rank-')) {
-      // ランキング内での移動
-      const sourceIndex = parseInt(draggedVeggie.source.split('-')[1]);
-      const temp = newRanking[rankIndex];
-      newRanking[rankIndex] = newRanking[sourceIndex];
-      newRanking[sourceIndex] = temp;
+      newRanking[rankIndex] = veggie;
+      setRanking(newRanking);
     }
-    
-    setRanking(newRanking);
-    setDraggedVeggie(null);
+    // ランキング内での並び替え
+    else if (activeIdStr.startsWith('rank-') && overIdStr.startsWith('rank-')) {
+      const sourceIndex = parseInt(activeIdStr.split('-')[1]);
+      const targetIndex = parseInt(overIdStr.split('-')[1]);
+
+      if (sourceIndex !== targetIndex) {
+        const newRanking = [...ranking];
+        const temp = newRanking[targetIndex];
+        newRanking[targetIndex] = newRanking[sourceIndex];
+        newRanking[sourceIndex] = temp;
+        setRanking(newRanking);
+      }
+    }
   };
 
   const removeFromRanking = (index) => {
@@ -232,7 +385,18 @@ https://gghatano.github.io/vegetable-ranking/`;
     });
   };
 
-  const availableVeggies = vegetables.filter(v => !ranking.includes(v));
+  // アクティブなアイテムの野菜名を取得
+  const getActiveVeggie = () => {
+    if (!activeId) return null;
+    const idStr = activeId.toString();
+    if (idStr.startsWith('list-')) {
+      return idStr.replace('list-', '');
+    } else if (idStr.startsWith('rank-')) {
+      const index = parseInt(idStr.split('-')[1]);
+      return ranking[index];
+    }
+    return null;
+  };
 
   if (screen === 'result') {
     return (
@@ -240,7 +404,7 @@ https://gghatano.github.io/vegetable-ranking/`;
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-lg shadow-md p-8">
             <h1 className="text-3xl font-bold text-center mb-8 text-green-700">野菜ランキング結果</h1>
-            
+
             <div className="space-y-4 mb-8">
               {ranking.map((veggie, index) => {
                 const medals = ['🥇', '🥈', '🥉'];
@@ -286,130 +450,110 @@ https://gghatano.github.io/vegetable-ranking/`;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 lg:p-8">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-2xl lg:text-3xl font-bold text-center mb-4 lg:mb-8 text-green-700">野菜ランキング作成</h1>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="min-h-screen bg-gray-50 p-4 lg:p-8">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-2xl lg:text-3xl font-bold text-center mb-4 lg:mb-8 text-green-700">野菜ランキング作成</h1>
 
-        <div className="flex flex-col lg:grid lg:grid-cols-4 gap-4 lg:gap-8">
-          {/* モバイル: 上部 / PC: 右側 - ランキングエリア */}
-          <div className="order-1 lg:order-2 lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md p-4 lg:p-6 lg:sticky lg:top-8">
-              <h2 className="text-lg lg:text-xl font-bold mb-3 lg:mb-4">ランキング</h2>
-              <div className="grid grid-cols-3 lg:grid-cols-1 gap-2 lg:gap-0 lg:space-y-3">
-                {[0, 1, 2].map((index) => (
-                  <div
-                    key={index}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, index)}
-                    className="border-2 border-dashed rounded-lg p-2 lg:p-3 min-h-[100px] lg:min-h-[120px] border-gray-300 hover:border-green-400 hover:bg-green-50 transition-colors"
-                  >
-                    <div className="text-xs lg:text-sm font-semibold text-gray-600 mb-1 lg:mb-2">{index + 1}位</div>
-                    {ranking[index] ? (
-                      <div className="bg-green-100 p-2 lg:p-3 rounded">
-                        <div
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, ranking[index], `rank-${index}`)}
-                          className="font-medium text-center mb-1 lg:mb-2 cursor-move hover:text-green-700 flex justify-between items-center text-xs lg:text-base"
-                        >
-                          <span className="flex-grow truncate"><span className="mr-1">{getVegetableIcon(ranking[index])}</span>{ranking[index]}</span>
-                          <button
-                            onClick={() => removeFromRanking(index)}
-                            className="text-red-500 hover:text-red-700 ml-1 lg:ml-2 flex-shrink-0"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                        <textarea
-                          placeholder="コメント"
-                          value={comments[ranking[index]] || ''}
-                          onChange={(e) => updateComment(ranking[index], e.target.value)}
-                          className="w-full text-xs lg:text-sm px-1 lg:px-2 py-1 border border-gray-200 rounded resize-none focus:outline-none focus:border-green-500 bg-white hidden lg:block"
-                          rows="2"
-                        />
-                      </div>
-                    ) : (
-                      <div className="text-gray-400 text-center text-xs lg:text-sm">ここにドラッグ</div>
-                    )}
+          <div className="flex flex-col lg:grid lg:grid-cols-4 gap-4 lg:gap-8">
+            {/* モバイル: 上部 / PC: 右側 - ランキングエリア */}
+            <div className="order-1 lg:order-2 lg:col-span-1">
+              <div className="bg-white rounded-lg shadow-md p-4 lg:p-6 lg:sticky lg:top-8">
+                <h2 className="text-lg lg:text-xl font-bold mb-3 lg:mb-4">ランキング</h2>
+                <SortableContext
+                  items={[0, 1, 2].map(i => `rank-${i}`)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="grid grid-cols-3 lg:grid-cols-1 gap-2 lg:gap-0 lg:space-y-3">
+                    {[0, 1, 2].map((index) => (
+                      <RankingSlot
+                        key={index}
+                        index={index}
+                        veggie={ranking[index]}
+                        comments={comments}
+                        updateComment={updateComment}
+                        removeFromRanking={removeFromRanking}
+                        isOver={overRankIndex === index}
+                      />
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
 
-              <div className="mt-3 lg:mt-4 flex flex-row lg:flex-col gap-2">
-                <button
-                  onClick={() => setScreen('result')}
-                  className="flex-1 lg:w-full px-3 lg:px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm lg:text-base"
-                >
-                  結果を見る
-                </button>
-                <button
-                  onClick={resetRanking}
-                  className="flex-1 lg:w-full px-3 lg:px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm lg:text-base"
-                >
-                  リセット
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* モバイル: 下部 / PC: 左側 - 野菜リスト */}
-          <div className="order-2 lg:order-1 lg:col-span-3">
-            <div className="bg-white rounded-lg shadow-md p-4 lg:p-6">
-              <div className="mb-4">
-                <h2 className="text-lg lg:text-xl font-bold mb-3">野菜を追加</h2>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newVeggie}
-                    onChange={(e) => setNewVeggie(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && addVegetable()}
-                    placeholder="野菜名を入力"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm lg:text-base"
-                  />
+                <div className="mt-3 lg:mt-4 flex flex-row lg:flex-col gap-2">
                   <button
-                    onClick={addVegetable}
-                    className="px-3 lg:px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm lg:text-base"
+                    onClick={() => setScreen('result')}
+                    className="flex-1 lg:w-full px-3 lg:px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm lg:text-base"
                   >
-                    追加
+                    結果を見る
+                  </button>
+                  <button
+                    onClick={resetRanking}
+                    className="flex-1 lg:w-full px-3 lg:px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm lg:text-base"
+                  >
+                    リセット
                   </button>
                 </div>
               </div>
+            </div>
 
-              <h2 className="text-lg lg:text-xl font-bold mb-3">野菜リスト</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 max-h-[calc(100vh-420px)] lg:max-h-[calc(100vh-280px)] overflow-y-auto pr-2">
-                {availableVeggies.map((veggie, index) => {
-                  const actualIndex = vegetables.indexOf(veggie);
-                  return (
-                    <div
-                      key={veggie}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, veggie, 'list', actualIndex)}
-                      onDragOver={(e) => handleListDragOver(e, actualIndex)}
-                      onDrop={(e) => handleListDrop(e, actualIndex)}
-                      className={`border-2 rounded-lg p-2 md:p-3 cursor-move hover:shadow-md transition-all ${
-                        dragOverIndex === actualIndex && draggedVeggie?.source === 'list'
-                          ? 'border-blue-400 bg-blue-50'
-                          : getVegetableColor(veggie)
-                      }`}
+            {/* モバイル: 下部 / PC: 左側 - 野菜リスト */}
+            <div className="order-2 lg:order-1 lg:col-span-3">
+              <div className="bg-white rounded-lg shadow-md p-4 lg:p-6">
+                <div className="mb-4">
+                  <h2 className="text-lg lg:text-xl font-bold mb-3">野菜を追加</h2>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newVeggie}
+                      onChange={(e) => setNewVeggie(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && addVegetable()}
+                      placeholder="野菜名を入力"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm lg:text-base"
+                    />
+                    <button
+                      onClick={addVegetable}
+                      className="px-3 lg:px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm lg:text-base"
                     >
-                      <div className="font-medium text-center mb-2 text-sm md:text-base">
-                        <span className="mr-1">{getVegetableIcon(veggie)}</span>{veggie}
-                      </div>
-                      <textarea
-                        placeholder="コメント"
-                        value={comments[veggie] || ''}
-                        onChange={(e) => updateComment(veggie, e.target.value)}
-                        className="w-full text-sm px-2 py-1 border border-gray-200 rounded resize-none focus:outline-none focus:border-green-400"
-                        rows="2"
+                      追加
+                    </button>
+                  </div>
+                </div>
+
+                <h2 className="text-lg lg:text-xl font-bold mb-3">野菜リスト</h2>
+                <SortableContext
+                  items={availableVeggies.map(v => `list-${v}`)}
+                  strategy={rectSortingStrategy}
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 max-h-[calc(100vh-420px)] lg:max-h-[calc(100vh-280px)] overflow-y-auto pr-2">
+                    {availableVeggies.map((veggie) => (
+                      <SortableVeggieCard
+                        key={veggie}
+                        veggie={veggie}
+                        comments={comments}
+                        updateComment={updateComment}
                       />
-                    </div>
-                  );
-                })}
+                    ))}
+                  </div>
+                </SortableContext>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* ドラッグ中のオーバーレイ */}
+      <DragOverlay>
+        {activeId && getActiveVeggie() ? (
+          <DragOverlayCard veggie={getActiveVeggie()} />
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 };
 
