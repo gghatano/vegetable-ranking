@@ -286,16 +286,76 @@ https://gghatano.github.io/vegetable-ranking/`;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 p-4 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-center mb-8 text-green-700">野菜ランキング作成</h1>
+        <h1 className="text-2xl lg:text-3xl font-bold text-center mb-4 lg:mb-8 text-green-700">野菜ランキング作成</h1>
 
-        <div className="grid grid-cols-4 gap-4 md:gap-8">
-          {/* 左側: 野菜リスト */}
-          <div className="col-span-3">
-            <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex flex-col lg:grid lg:grid-cols-4 gap-4 lg:gap-8">
+          {/* モバイル: 上部 / PC: 右側 - ランキングエリア */}
+          <div className="order-1 lg:order-2 lg:col-span-1">
+            <div className="bg-white rounded-lg shadow-md p-4 lg:p-6 lg:sticky lg:top-8">
+              <h2 className="text-lg lg:text-xl font-bold mb-3 lg:mb-4">ランキング</h2>
+              <div className="grid grid-cols-3 lg:grid-cols-1 gap-2 lg:gap-0 lg:space-y-3">
+                {[0, 1, 2].map((index) => (
+                  <div
+                    key={index}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, index)}
+                    className="border-2 border-dashed rounded-lg p-2 lg:p-3 min-h-[100px] lg:min-h-[120px] border-gray-300 hover:border-green-400 hover:bg-green-50 transition-colors"
+                  >
+                    <div className="text-xs lg:text-sm font-semibold text-gray-600 mb-1 lg:mb-2">{index + 1}位</div>
+                    {ranking[index] ? (
+                      <div className="bg-green-100 p-2 lg:p-3 rounded">
+                        <div
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, ranking[index], `rank-${index}`)}
+                          className="font-medium text-center mb-1 lg:mb-2 cursor-move hover:text-green-700 flex justify-between items-center text-xs lg:text-base"
+                        >
+                          <span className="flex-grow truncate"><span className="mr-1">{getVegetableIcon(ranking[index])}</span>{ranking[index]}</span>
+                          <button
+                            onClick={() => removeFromRanking(index)}
+                            className="text-red-500 hover:text-red-700 ml-1 lg:ml-2 flex-shrink-0"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                        <textarea
+                          placeholder="コメント"
+                          value={comments[ranking[index]] || ''}
+                          onChange={(e) => updateComment(ranking[index], e.target.value)}
+                          className="w-full text-xs lg:text-sm px-1 lg:px-2 py-1 border border-gray-200 rounded resize-none focus:outline-none focus:border-green-500 bg-white hidden lg:block"
+                          rows="2"
+                        />
+                      </div>
+                    ) : (
+                      <div className="text-gray-400 text-center text-xs lg:text-sm">ここにドラッグ</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-3 lg:mt-4 flex flex-row lg:flex-col gap-2">
+                <button
+                  onClick={() => setScreen('result')}
+                  className="flex-1 lg:w-full px-3 lg:px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm lg:text-base"
+                >
+                  結果を見る
+                </button>
+                <button
+                  onClick={resetRanking}
+                  className="flex-1 lg:w-full px-3 lg:px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm lg:text-base"
+                >
+                  リセット
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* モバイル: 下部 / PC: 左側 - 野菜リスト */}
+          <div className="order-2 lg:order-1 lg:col-span-3">
+            <div className="bg-white rounded-lg shadow-md p-4 lg:p-6">
               <div className="mb-4">
-                <h2 className="text-xl font-bold mb-3">野菜を追加</h2>
+                <h2 className="text-lg lg:text-xl font-bold mb-3">野菜を追加</h2>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -303,19 +363,19 @@ https://gghatano.github.io/vegetable-ranking/`;
                     onChange={(e) => setNewVeggie(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && addVegetable()}
                     placeholder="野菜名を入力"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm lg:text-base"
                   />
                   <button
                     onClick={addVegetable}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    className="px-3 lg:px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm lg:text-base"
                   >
                     追加
                   </button>
                 </div>
               </div>
 
-              <h2 className="text-xl font-bold mb-3">野菜リスト</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 max-h-[calc(100vh-280px)] overflow-y-auto pr-2">
+              <h2 className="text-lg lg:text-xl font-bold mb-3">野菜リスト</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 max-h-[calc(100vh-420px)] lg:max-h-[calc(100vh-280px)] overflow-y-auto pr-2">
                 {availableVeggies.map((veggie, index) => {
                   const actualIndex = vegetables.indexOf(veggie);
                   return (
@@ -344,66 +404,6 @@ https://gghatano.github.io/vegetable-ranking/`;
                     </div>
                   );
                 })}
-              </div>
-            </div>
-          </div>
-
-          {/* 右側: ランキングエリア（固定） */}
-          <div className="col-span-1">
-            <div className="bg-white rounded-lg shadow-md p-6 sticky top-8">
-              <h2 className="text-xl font-bold mb-4">ランキング</h2>
-              <div className="space-y-3">
-                {[0, 1, 2].map((index) => (
-                  <div
-                    key={index}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, index)}
-                    className="border-2 border-dashed rounded-lg p-3 min-h-[120px] border-gray-300 hover:border-green-400 hover:bg-green-50 transition-colors"
-                  >
-                    <div className="text-sm font-semibold text-gray-600 mb-2">{index + 1}位</div>
-                    {ranking[index] ? (
-                      <div className="bg-green-100 p-3 rounded">
-                        <div
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, ranking[index], `rank-${index}`)}
-                          className="font-medium text-center mb-2 cursor-move hover:text-green-700 flex justify-between items-center"
-                        >
-                          <span className="flex-grow"><span className="mr-1">{getVegetableIcon(ranking[index])}</span>{ranking[index]}</span>
-                          <button
-                            onClick={() => removeFromRanking(index)}
-                            className="text-red-500 hover:text-red-700 ml-2"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                        <textarea
-                          placeholder="コメント"
-                          value={comments[ranking[index]] || ''}
-                          onChange={(e) => updateComment(ranking[index], e.target.value)}
-                          className="w-full text-sm px-2 py-1 border border-gray-200 rounded resize-none focus:outline-none focus:border-green-500 bg-white"
-                          rows="2"
-                        />
-                      </div>
-                    ) : (
-                      <div className="text-gray-400 text-center text-sm">ここにドラッグ</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 flex flex-col gap-2">
-                <button
-                  onClick={() => setScreen('result')}
-                  className="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                >
-                  結果を見る
-                </button>
-                <button
-                  onClick={resetRanking}
-                  className="w-full px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                >
-                  リセット
-                </button>
               </div>
             </div>
           </div>
