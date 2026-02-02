@@ -163,7 +163,7 @@ const SortableVeggieCard = ({ veggie, comments, updateComment }) => {
         </div>
         <input
           type="text"
-          placeholder="コメント"
+          placeholder="選んだ理由を一言..."
           value={comments[veggie] || ''}
           onChange={(e) => updateComment(veggie, e.target.value)}
           className="w-full text-xs md:text-sm px-2 py-1 mt-1 border border-gray-200 rounded focus:outline-none focus:border-green-400"
@@ -226,7 +226,7 @@ const RankingSlot = ({ index, veggie, comments, updateComment, removeFromRanking
               </button>
             </div>
             <textarea
-              placeholder="コメント"
+              placeholder="選んだ理由を一言..."
               value={comments[veggie] || ''}
               onChange={(e) => updateComment(veggie, e.target.value)}
               className="w-full text-xs lg:text-sm px-1 lg:px-2 py-1 mt-1 border border-gray-200 rounded resize-none focus:outline-none focus:border-green-500 bg-white hidden lg:block"
