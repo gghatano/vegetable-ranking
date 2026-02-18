@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -124,7 +124,7 @@ const DragOverlayCard = ({ veggie }) => {
 };
 
 // 野菜リスト内のソート可能なカード
-const SortableVeggieCard = ({ veggie, comments, updateComment }) => {
+const SortableVeggieCard = ({ veggie, comments, updateComment, showCommentTutorial }) => {
   const {
     attributes,
     listeners,
@@ -167,6 +167,7 @@ const SortableVeggieCard = ({ veggie, comments, updateComment }) => {
           value={comments[veggie] || ''}
           onChange={(e) => updateComment(veggie, e.target.value)}
           className="w-full text-xs md:text-sm px-2 py-1 mt-1 border border-gray-200 rounded focus:outline-none focus:border-green-400"
+          {...(showCommentTutorial ? { 'data-tutorial': 'comment-area' } : {})}
         />
       </div>
     </div>
@@ -241,6 +242,150 @@ const RankingSlot = ({ index, veggie, comments, updateComment, removeFromRanking
   );
 };
 
+// チュートリアルのステップ定義
+const TUTORIAL_STEPS = [
+  {
+    target: null,
+    title: '野菜ランキングの作り方',
+    message: 'かんたん3ステップで、あなただけの野菜ランキングを作ろう！',
+  },
+  {
+    target: '[data-tutorial="veggie-list"]',
+    title: 'ステップ1',
+    message: 'ここから好きな野菜のカードを選んで、',
+  },
+  {
+    target: '[data-tutorial="comment-area"]',
+    title: 'ステップ2',
+    message: 'その野菜が好きな理由を書いて、',
+  },
+  {
+    target: '[data-tutorial="ranking-area"]',
+    title: 'ステップ3',
+    message: 'ランキングに配置しよう！',
+  },
+  {
+    target: null,
+    title: '準備OK！',
+    message: 'さっそく始めよう！',
+  },
+];
+
+const Tutorial = ({ step, onNext, onSkip, onFinish }) => {
+  const [highlightStyle, setHighlightStyle] = useState(null);
+  const currentStep = TUTORIAL_STEPS[step];
+  const isLastStep = step === TUTORIAL_STEPS.length - 1;
+
+  const updateHighlight = useCallback(() => {
+    if (currentStep.target) {
+      const el = document.querySelector(currentStep.target);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        const padding = 8;
+        setHighlightStyle({
+          top: rect.top - padding,
+          left: rect.left - padding,
+          width: rect.width + padding * 2,
+          height: rect.height + padding * 2,
+        });
+      }
+    } else {
+      setHighlightStyle(null);
+    }
+  }, [currentStep.target]);
+
+  useEffect(() => {
+    updateHighlight();
+    window.addEventListener('resize', updateHighlight);
+    return () => window.removeEventListener('resize', updateHighlight);
+  }, [updateHighlight]);
+
+  return (
+    <div className="fixed inset-0 z-50">
+      {/* オーバーレイ背景 */}
+      {highlightStyle ? (
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'rgba(0,0,0,0.5)',
+            maskImage: `
+              linear-gradient(#000 0 0),
+              linear-gradient(#000 0 0)
+            `,
+            maskComposite: 'exclude',
+            WebkitMaskImage: `
+              linear-gradient(#000 0 0),
+              linear-gradient(#000 0 0)
+            `,
+            WebkitMaskComposite: 'xor',
+            maskPosition: `0 0, ${highlightStyle.left}px ${highlightStyle.top}px`,
+            maskSize: `100% 100%, ${highlightStyle.width}px ${highlightStyle.height}px`,
+            WebkitMaskPosition: `0 0, ${highlightStyle.left}px ${highlightStyle.top}px`,
+            WebkitMaskSize: `100% 100%, ${highlightStyle.width}px ${highlightStyle.height}px`,
+            maskRepeat: 'no-repeat',
+            WebkitMaskRepeat: 'no-repeat',
+          }}
+          onClick={onSkip}
+        />
+      ) : (
+        <div
+          className="absolute inset-0 bg-black/50"
+          onClick={onSkip}
+        />
+      )}
+
+      {/* ハイライト枠 */}
+      {highlightStyle && (
+        <div
+          className="absolute border-2 border-green-400 rounded-lg pointer-events-none"
+          style={{
+            top: highlightStyle.top,
+            left: highlightStyle.left,
+            width: highlightStyle.width,
+            height: highlightStyle.height,
+            boxShadow: '0 0 0 4px rgba(74, 222, 128, 0.3)',
+          }}
+        />
+      )}
+
+      {/* メッセージボックス（画面下部に固定） */}
+      <div
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-2xl p-6 max-w-sm w-[90%]"
+      >
+        <div className="text-center">
+          <div className="text-lg font-bold text-green-700 mb-2">{currentStep.title}</div>
+          <div className="text-gray-700 mb-6 text-base">{currentStep.message}</div>
+          <div className="flex gap-3 justify-center">
+            {!isLastStep && (
+              <button
+                onClick={onSkip}
+                className="px-4 py-2 text-gray-500 hover:text-gray-700 text-sm"
+              >
+                スキップ
+              </button>
+            )}
+            <button
+              onClick={isLastStep ? onFinish : onNext}
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+            >
+              {isLastStep ? 'はじめる！' : '次へ'}
+            </button>
+          </div>
+          {/* ステップインジケーター */}
+          <div className="flex gap-1.5 justify-center mt-4">
+            {TUTORIAL_STEPS.map((_, i) => (
+              <div
+                key={i}
+                className={`w-2 h-2 rounded-full ${i === step ? 'bg-green-600' : 'bg-gray-300'}`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const VegetableRankingApp = () => {
   const [screen, setScreen] = useState('ranking');
   const [vegetables, setVegetables] = useState([]);
@@ -249,6 +394,8 @@ const VegetableRankingApp = () => {
   const [newVeggie, setNewVeggie] = useState('');
   const [activeId, setActiveId] = useState(null);
   const [overRankIndex, setOverRankIndex] = useState(null);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
 
   // タッチとマウス両対応のセンサー設定
   const sensors = useSensors(
@@ -275,6 +422,8 @@ const VegetableRankingApp = () => {
     } else {
       setVegetables(DEFAULT_VEGETABLES);
     }
+
+    setShowTutorial(true);
   }, []);
 
   useEffect(() => {
@@ -284,6 +433,11 @@ const VegetableRankingApp = () => {
       comments
     }));
   }, [vegetables, ranking, comments]);
+
+  const closeTutorial = () => {
+    setShowTutorial(false);
+    setTutorialStep(0);
+  };
 
   const availableVeggies = vegetables.filter(v => !ranking.includes(v));
 
@@ -482,7 +636,7 @@ https://gghatano.github.io/vegetable-ranking/`;
           <div className="flex flex-col lg:grid lg:grid-cols-4 gap-4 lg:gap-8">
             {/* モバイル: 上部 / PC: 右側 - ランキングエリア */}
             <div className="order-1 lg:order-2 lg:col-span-1">
-              <div className="bg-white rounded-lg shadow-md p-4 lg:p-6 lg:sticky lg:top-8">
+              <div className="bg-white rounded-lg shadow-md p-4 lg:p-6 lg:sticky lg:top-8" data-tutorial="ranking-area">
                 <h2 className="text-lg lg:text-xl font-bold mb-3 lg:mb-4">ランキング</h2>
                 <SortableContext
                   items={[0, 1, 2].map(i => `rank-${i}`)}
@@ -548,13 +702,14 @@ https://gghatano.github.io/vegetable-ranking/`;
                   items={availableVeggies.map(v => `list-${v}`)}
                   strategy={rectSortingStrategy}
                 >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 max-h-[calc(100vh-420px)] lg:max-h-[calc(100vh-280px)] overflow-y-auto pr-2">
-                    {availableVeggies.map((veggie) => (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 max-h-[calc(100vh-420px)] lg:max-h-[calc(100vh-280px)] overflow-y-auto pr-2" data-tutorial="veggie-list">
+                    {availableVeggies.map((veggie, idx) => (
                       <SortableVeggieCard
                         key={veggie}
                         veggie={veggie}
                         comments={comments}
                         updateComment={updateComment}
+                        showCommentTutorial={idx === 0}
                       />
                     ))}
                   </div>
@@ -571,6 +726,16 @@ https://gghatano.github.io/vegetable-ranking/`;
           <DragOverlayCard veggie={getActiveVeggie()} />
         ) : null}
       </DragOverlay>
+
+      {/* チュートリアル */}
+      {showTutorial && (
+        <Tutorial
+          step={tutorialStep}
+          onNext={() => setTutorialStep(s => s + 1)}
+          onSkip={closeTutorial}
+          onFinish={closeTutorial}
+        />
+      )}
     </DndContext>
   );
 };
